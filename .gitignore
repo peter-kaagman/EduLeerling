@@ -29,6 +29,9 @@ inc/
 /_eumm/
 /*.gz
 /Makefile
+
+*.cfg
+
 /Makefile.old
 /MANIFEST.bak
 /pm_to_blib
