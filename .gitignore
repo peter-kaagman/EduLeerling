@@ -30,9 +30,10 @@ inc/
 /*.gz
 /Makefile
 
-*.cfg
-
 /Makefile.old
 /MANIFEST.bak
 /pm_to_blib
 /*.zip
+
+*.cfg
+Log/*log
