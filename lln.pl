@@ -42,7 +42,7 @@ my $az_session = MsUsers->new(
 	'graph_endpoint'=> $config{'GRAPH_ENDPOINT'},
 	#'filter'        => '$filter=endswith(mail,\'atlascollege.nl\')', 
 	'filter'        => '$filter=userType eq \'Member\'', 
-    'select'        => '$select=id,displayName,userPrincipalName,department,jobTitle,givenName,surname',
+    'select'        => '$select=id,displayName,userPrincipalName,department,jobTitle,givenName,surname,employeeId',
 	#'consistencylevel' => 'eventual',
 );
 
@@ -145,9 +145,14 @@ while (my($upn,$account) = each (%{$lln_mg})){
             $ToDo->{'mutate'}->{$b_nummer}->{'upn'} = $upn;
             # $ToDo->{'mutate'}->{$b_nummer}->{'upn_org'} = $lln_az->{$upn}->{'userPrincipalName'};
         }
+        # Employee ID
+        if ( (! $lln_az->{$upn}->{'employeeId'}) || ($account->{'stamnr'} ne $lln_az->{$upn}->{'employeeId'}) ){
+            $ToDo->{'mutate'}->{$b_nummer}->{'employeeId'} = $account->{'stamnr'};
+        }
     }
 }
-
+# say Dumper $ToDo;
+# exit 1;
 if ($ToDo){
     # Opzoeklijstje maken van bestaande tickets
     my $spo_object = MsSpoList->new(
