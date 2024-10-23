@@ -151,8 +151,8 @@ while (my($upn,$account) = each (%{$lln_mg})){
         }
     }
 }
-# say Dumper $ToDo;
-# exit 1;
+ say Dumper $ToDo;
+ exit 1;
 if ($ToDo){
     # Opzoeklijstje maken van bestaande tickets
     my $spo_object = MsSpoList->new(
