@@ -15,6 +15,7 @@ use lib "$FindBin::Bin/../msgraph-perl/lib";
 
 use Magister; # Diverse magister functies
 use MsUsers;
+use MsUser;
 use MsSpoList;
 
 binmode(STDOUT, ":utf8");
@@ -58,7 +59,7 @@ my $locaties = {
 # Dit zijn de leerlingen van het lopende schooljaar vlgs Magister
 my $lln_mg = $mag_session->getLeerlingen();
 
-# Dit zijn de leerlingen van het lopende schooljaar vlgs Magister
+# Dit zijn de leerlingen van het lopende schooljaar vlgs Azure
 my $tmp = $az_session->users_fetch();
 # Hash van maken met alleen leerlig accounts
 my $lln_az;
@@ -70,12 +71,14 @@ foreach my $account (@{$tmp}){
 
 # Azure versus Magister
 while (my($upn,$account) = each(%{$lln_az})){
+    #say Dumper $account if ($upn eq 'b134247@atlascollege.nl');
     if (! $lln_mg->{$upn}){
         push @{$ToDo->{'delete'}}, $account;
     }
 }
 # Magister versus Azure
 while (my($upn,$account) = each(%{$lln_mg})){
+    #say Dumper $account if ($upn eq 'b134247@atlascollege.nl');
     if (! $lln_az->{$upn}){
         $account->{'locatie'} = $locaties->{$account->{'locatie_index'}};
         push @{$ToDo->{'create'}}, $account;
@@ -94,6 +97,7 @@ while (my($upn,$account) = each (%{$lln_mg})){
 }
 
 # Properties
+#'$select=id,displayName,userPrincipalName,department,jobTitle,givenName,surname,employeeId',
 while (my($upn,$account) = each (%{$lln_mg})){
     if ($lln_az->{$upn}){
         # Init
@@ -114,45 +118,45 @@ while (my($upn,$account) = each (%{$lln_mg})){
 
         # locatie
         if ($locaties->{$account->{'locatie_index'}} ne $lln_az->{$upn}->{'department'}){
-            $ToDo->{'mutate'}->{$b_nummer}->{'locatie'} = $locaties->{$account->{'locatie_index'}};
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'department'} = $locaties->{$account->{'locatie_index'}};
             # $ToDo->{'mutate'}->{$b_nummer}->{'locatie_org'} = $lln_az->{$upn}->{'department'};
         }
         # jobTitle
         if (
-            ($lln_az->{$upn}->{'jobTitle'})&&
-            ($jobTitle ne $lln_az->{$upn}->{'jobTitle'})
-        ){
-            $ToDo->{'mutate'}->{$b_nummer}->{'title'} = $jobTitle;
+                !$lln_az->{$upn}->{'jobTitle'} ||
+                $jobTitle ne $lln_az->{$upn}->{'jobTitle'}
+            )
+        {
+           
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'jobTitle'} = $jobTitle;
             # $ToDo->{'mutate'}->{$b_nummer}->{'title_org'} = $lln_az->{$upn}->{'jobTitle'};
         }
         # givenName
         if ($account->{'v_naam'} ne $lln_az->{$upn}->{'givenName'}){
-            $ToDo->{'mutate'}->{$b_nummer}->{'voornaam'} = $account->{'v_naam'};
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'givenName'} = $account->{'v_naam'};
             # $ToDo->{'mutate'}->{$b_nummer}->{'voornaam_org'} = $lln_az->{$upn}->{'givenName'};
         }
         # surname
         if ($surname ne $lln_az->{$upn}->{'surname'}){
-            $ToDo->{'mutate'}->{$b_nummer}->{'achternaam'} = $surname;
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'surname'} = $surname;
             # $ToDo->{'mutate'}->{$b_nummer}->{'achternaam_org'} = $lln_az->{$upn}->{'surname'};
         }
         # displayName
         if ($displayName ne $lln_az->{$upn}->{'displayName'}){
-            $ToDo->{'mutate'}->{$b_nummer}->{'displayName'} = $displayName;
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'displayName'} = $displayName;
             # $ToDo->{'mutate'}->{$b_nummer}->{'displayName_org'} = $lln_az->{$upn}->{'displayName'};
         }
         # upn
         if ($upn ne $lln_az->{$upn}->{'userPrincipalName'}){
-            $ToDo->{'mutate'}->{$b_nummer}->{'upn'} = $upn;
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'userPrincipalName'} = $upn;
             # $ToDo->{'mutate'}->{$b_nummer}->{'upn_org'} = $lln_az->{$upn}->{'userPrincipalName'};
         }
         # Employee ID
         if ( (! $lln_az->{$upn}->{'employeeId'}) || ($account->{'stamnr'} ne $lln_az->{$upn}->{'employeeId'}) ){
-            $ToDo->{'mutate'}->{$b_nummer}->{'employeeId'} = $account->{'stamnr'};
+            $ToDo->{'mutate'}->{$lln_az->{$upn}->{'id'}}->{'employeeId'} = $account->{'stamnr'};
         }
     }
 }
- say Dumper $ToDo;
- exit 1;
 if ($ToDo){
     # Opzoeklijstje maken van bestaande tickets
     my $spo_object = MsSpoList->new(
@@ -183,7 +187,7 @@ if ($ToDo){
                     if($entry->{'userPrincipalName'} =~ /^(b\d{6})\@.*/){
                         if(! grep( /$1$/, @b_nummers)){
                             my $description;
-                            $description .= '<p><b>Zoals afgesproken deactioveren, niet verwijderen.</b></p>';
+                            $description .= '<p><b>Zoals afgesproken deactiveren, niet verwijderen.</b></p>';
                             $description .= "<br>";
                             $description .= "<p>Leerling deactiveren: $1</p>";
                             my $payload = {
@@ -277,9 +281,10 @@ if ($ToDo){
             }
             case 'mutate'{
                 say 'mutate';
-                open(my $FH, '>', "$FindBin::Bin/mutaties/mutaties.json") or die $!;
-                my $json = JSON->new->allow_nonref;
-                print $FH $json->pretty->encode($actions);
+                mutate($actions)
+                # open(my $FH, '>', "$FindBin::Bin/mutaties/mutaties.json") or die $!;
+                # my $json = JSON->new->allow_nonref;
+                # print $FH $json->pretty->encode($actions);
             }
             else {
                 say "Default action for $type";
@@ -290,3 +295,25 @@ if ($ToDo){
     }
 }
 
+sub mutate {
+    my $actions = shift;
+    while (my ($who,$what) = each(%{$actions})){
+        # what is al payload
+        my $user_object = MsUser->new(
+            'app_id'        => $config{'APP_ID'},
+            'app_secret'    => $config{'APP_PASS'},
+            'tenant_id'     => $config{'TENANT_ID'},
+            'login_endpoint'=> $config{'LOGIN_ENDPOINT'},
+            'graph_endpoint'=> $config{'GRAPH_ENDPOINT'},
+            # 'select'        => '$select=id,displayName,mailNickname,primaryRole',
+            'id'            => $who,
+            'access_token'  => $az_session->_get_access_token,
+            'token_expires' => $az_session->_get_token_expires,
+        );
+        #say $who;
+        my $json = JSON->new->allow_nonref;
+        say $json->pretty->encode($what);
+        my $result = $user_object->user_update($what);
+        #say  Dumper $result;
+    }
+}
